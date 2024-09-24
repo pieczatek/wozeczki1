@@ -1,43 +1,46 @@
 #include <Arduino.h>
 #include "BluetoothSerial.h"
 #include <ESP32Servo.h>
+#include "HardwareSerial.h"
 
 #if !defined(CONFIG_BT_ENABLED) || !defined(CONFIG_BLUEDROID_ENABLED)
 #error Bluetooth is not enabled! Please run `make menuconfig` to and enable it
 #endif
 
+static const String BT_DEVICE_NAME = "ESP32_Baza1";
+static const int UART_VERSION = 2; // Using UART2
+static const int servo360Pin = 13; // motor pin
+static const int rxPin = 16; // reveive pin
+static const int txPin = 17; // transmit pin
+
 BluetoothSerial SerialBT;
+HardwareSerial DaisyChain(UART_VERSION);
+//Servo servo360;
 
-static const int servoPin = 13;
-
-Servo servo1;
+void handleCommand(int command);
 
 void setup()
 {
   Serial.begin(115200);
-  servo1.attach(servoPin);
-  SerialBT.begin("ESP32test"); // Bluetooth device name
-  Serial.println("The device started, now you can pair it with bluetooth!");
+  SerialBT.begin(BT_DEVICE_NAME);
+  DaisyChain.begin(9600, SERIAL_8N1, rxPin, txPin);
+  //servo360.attach(servo360Pin);
+  Serial.println("Baza setup completed");
 }
 
-void rotateForward()
+void loop()
 {
-  for (int posDegrees = 0; posDegrees <= 90; posDegrees++)
+  if (Serial.available())
   {
-    servo1.write(posDegrees);
-    Serial.println(posDegrees);
-    delay(20);
+    int serialRead = Serial.read();
+    SerialBT.write(serialRead);
   }
-}
-
-void rotateBack()
-{
-  for (int posDegrees = 90; posDegrees >= 0; posDegrees--)
+  if (SerialBT.available())
   {
-    servo1.write(posDegrees);
-    Serial.println(posDegrees);
-    delay(20);
+    int serialBTRead = SerialBT.read();
+    handleCommand(serialBTRead);
   }
+  delay(20);
 }
 
 void handleCommand(int command)
@@ -46,36 +49,15 @@ void handleCommand(int command)
   Serial.println(command);
   switch (command)
   {
-  case 49: // ASCII "1"
-    rotateForward();
+  case '1':
+    DaisyChain.print(command);
     break;
 
-  case 48: // ASCII "0"
-    rotateBack();
+  case '0':
+    DaisyChain.print(command);
     break;
 
   default:
     break;
   }
-}
-
-void loop()
-{
-  if (Serial.available())
-  {
-    int serialRead = Serial.read();
-    Serial.print("UNO ");
-    Serial.println(serialRead);
-    SerialBT.write(serialRead);
-  }
-  if (SerialBT.available())
-  {
-    int serialBTRead = SerialBT.read();
-    // Serial.print("DOS ");
-    // Serial.println(serialBTRead);
-    //Serial.write(serialBTRead);
-    handleCommand(serialBTRead);
-    
-  }
-  delay(20);
 }
