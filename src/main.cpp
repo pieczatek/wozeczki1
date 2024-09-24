@@ -1,63 +1,68 @@
 #include <Arduino.h>
-#include "BluetoothSerial.h"
 #include <ESP32Servo.h>
 #include "HardwareSerial.h"
 
-#if !defined(CONFIG_BT_ENABLED) || !defined(CONFIG_BLUEDROID_ENABLED)
-#error Bluetooth is not enabled! Please run `make menuconfig` to and enable it
-#endif
-
-static const String BT_DEVICE_NAME = "ESP32_Baza1";
 static const int UART_VERSION = 2; // Using UART2
-static const int servo360Pin = 13; // motor pin
+static const int servo180Pin = 13; // motor pin
 static const int rxPin = 16; // reveive pin
 static const int txPin = 17; // transmit pin
 
-BluetoothSerial SerialBT;
 HardwareSerial DaisyChain(UART_VERSION);
-//Servo servo360;
+Servo servo180;
 
-void handleCommand(int command);
+void handleCommand(String command);
+void rotateForward();
+void rotateBack();
 
 void setup()
 {
   Serial.begin(115200);
-  SerialBT.begin(BT_DEVICE_NAME);
   DaisyChain.begin(9600, SERIAL_8N1, rxPin, txPin);
-  //servo360.attach(servo360Pin);
-  Serial.println("Baza setup completed");
+  servo180.attach(servo180Pin);
 }
 
 void loop()
 {
-  if (Serial.available())
-  {
-    int serialRead = Serial.read();
-    SerialBT.write(serialRead);
+  if (DaisyChain.available()) {
+    String command = DaisyChain.readStringUntil('\n');
+    Serial.println("Received on wozeczek: " + command);
+    handleCommand(command);
   }
-  if (SerialBT.available())
-  {
-    int serialBTRead = SerialBT.read();
-    handleCommand(serialBTRead);
-  }
-  delay(20);
+  delay(100);  // Small delay to avoid overwhelming serial buffer
 }
 
-void handleCommand(int command)
+void handleCommand(String command)
 {
-  Serial.print("Handling command: ");
-  Serial.println(command);
-  switch (command)
+  command.trim(); // workaround
+  Serial.println("Handling command: " + command + ".");
+  command.length();
+  if (command == "Hello jedyneczka") {
+    DaisyChain.println(command);
+    rotateForward();
+  } else if (command == "Siema zeroweczka") {
+    DaisyChain.println(command);
+    rotateBack();
+  } else {
+    Serial.println("Command not recognised");
+  }
+}
+
+void rotateForward()
+{
+  for (int posDegrees = 0; posDegrees <= 90; posDegrees++)
   {
-  case '1':
-    DaisyChain.print(command);
-    break;
+    servo180.write(posDegrees);
+    Serial.println(posDegrees);
+    delay(20);
+  }
+}
 
-  case '0':
-    DaisyChain.print(command);
-    break;
-
-  default:
-    break;
+void rotateBack()
+{
+  for (int posDegrees = 90; posDegrees >= 0; posDegrees--)
+  {
+    servo180.write(posDegrees);
+    Serial.println(posDegrees);
+    delay(20);
   }
 }
